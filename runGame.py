@@ -93,7 +93,7 @@ def callback(ccgame):
     teamAgent1 = TeamNameMinimaxAgent(ccgame, player=1,
                                       max_search_depth=4,
                                       max_search_depth_without_opponent=3,
-                                      max_search_actions_cnt=36,
+                                      max_search_actions_cnt=32,
                                       enable_sort_actions=True,
                                       enable_without_opponent=True)
     teamAgent2 = TeamNameMinimaxAgent(ccgame, player=2,
