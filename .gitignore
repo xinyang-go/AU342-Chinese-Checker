@@ -1,0 +1,7 @@
+.idea
+__pycache__
+venv
+plugin/.idea
+plugin/cmake-build-debug
+plugin/cmake-build-release
+plugin/build
