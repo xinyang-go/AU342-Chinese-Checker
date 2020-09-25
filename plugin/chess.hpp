@@ -27,8 +27,17 @@ inline point_t operator+(const point_t &p1, const point_t &p2) {
     return {p1.x + p2.x, p1.y + p2.y};
 }
 
+inline void operator+=(point_t &p1, const point_t &p2) {
+    p1.x += p2.x;
+    p1.y += p2.y;
+}
+
 inline bool operator==(const point_t &p1, const point_t &p2) {
     return p1.x == p2.x && p1.y == p2.y;
+}
+
+inline bool operator!=(const point_t &p1, const point_t &p2) {
+    return p1.x != p2.x || p1.y != p2.y;
 }
 
 bool is_finish(int player, chess_ct chess);

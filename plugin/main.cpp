@@ -130,13 +130,13 @@ int main(int argc, char *argv[]) {
                       << std::endl;
         }
 
-//        std::cout << "step: `" << step << std::endl;
+//        std::cout << "step: " << step << std::endl;
 //        std::cout << (normal_mode ? "normal: " : "parallel: ")
 //                  << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "ms"
 //                  << std::endl;
 //        std::cout << "player-" << player << ": " << action << std::endl;
 //        print_chess(chess);
-//        std::cout << "=====`======================" << std::endl;
+//        std::cout << "============================" << std::endl;
 
         player = 3 - player;
     }

@@ -1,11 +1,8 @@
 #include "chess.hpp"
-#include <cstring>
 #include <algorithm>
 #include <random>
 #include <thread>
 #include <future>
-#include <iostream>
-#include <cassert>
 
 static constexpr point_t steps[6] = {{0,  1},
                                      {0,  -1},
@@ -14,33 +11,14 @@ static constexpr point_t steps[6] = {{0,  1},
                                      {1,  -1},
                                      {-1, 1},};
 
-static constexpr point_t jumps[24] = {{0,  2},
-                                      {0,  4},
-                                      {0,  6},
-                                      {0,  8},
-                                      {0,  -2},
-                                      {0,  -4},
-                                      {0,  -6},
-                                      {0,  -8},
-                                      {2,  0},
-                                      {4,  0},
-                                      {6,  0},
-                                      {8,  0},
-                                      {-2, 0},
-                                      {-4, 0},
-                                      {-6, 0},
-                                      {-8, 0},
-                                      {2,  -2},
-                                      {4,  -4},
-                                      {6,  -6},
-                                      {8,  -8},
-                                      {-2, 2},
-                                      {-4, 4},
-                                      {-6, 6},
-                                      {-8, 8},
+static constexpr point_t directions[] = {
+        {0,  1},
+        {0,  -1},
+        {1,  0},
+        {-1, 0},
+        {1,  -1},
+        {-1, 1}
 };
-
-static constexpr int jumps_cnt = sizeof(jumps) / sizeof(jumps[0]);
 
 static constexpr int score7[10][10] = {
         {600, 220, 500, 429, 418, 403, 387, 367, 346, 321},
@@ -166,23 +144,37 @@ static bool is_same_action(const std::vector<action_t> &actions,
     });
 }
 
-static void dfs_jumps(chess_t chess, const point_t &begin, const point_t &curr,
-                      std::vector<action_t> &actions) {
-    for (int i = 0; i < jumps_cnt; i++) {
-        auto jump = jumps[i];
-        auto end = curr + jump;
-        if (is_out_of_range(end)) {
-            i = i / 4 * 4 + 3;
-            continue;
+void dfs_jumps(chess_t chess, const point_t &begin, const point_t &curr, std::vector<action_t> &actions) {
+    // 遍历每个可以跳的方向
+    for (const auto &direction : directions) {
+        bool finding_bridge = true;
+        int before_bridge_len = 0, after_bridge_len = 0;
+        // 遍历这个方向上的棋盘
+        for (point_t end = curr + direction; !is_out_of_range(end); end += direction) {
+            if (finding_bridge) {
+                if (chess[end.x][end.y] == 0) {
+                    before_bridge_len++;
+                } else {
+                    finding_bridge = false;
+                }
+            } else {
+                if (chess[end.x][end.y] == 0) {
+                    if (after_bridge_len == before_bridge_len) {
+                        if (begin != end && !is_same_action(actions, begin, end)) {
+                            // 找到一个合法的跳法
+                            actions.emplace_back(action_t{begin, end});
+                            auto_action_applier applier(chess, curr, end);
+                            dfs_jumps(chess, begin, end, actions);
+                        }
+                        break;
+                    } else {
+                        after_bridge_len++;
+                    }
+                } else {
+                    break;
+                }
+            }
         }
-        if (!is_empty_position(chess, end)) continue;
-        if (begin == end) continue;
-        if (!is_legal_jump(chess, curr, jump, end)) continue;
-        if (is_same_action(actions, begin, end)) continue;
-        actions.emplace_back(action_t{begin, end});
-        auto_action_applier applier(chess, curr, end);
-        dfs_jumps(chess, begin, end, actions);
-        i = i / 4 * 4 + 3;
     }
 }
 
