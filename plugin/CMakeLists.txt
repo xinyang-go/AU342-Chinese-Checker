@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.5)
 project(plugin)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -7,6 +7,8 @@ set(LIBRARY_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/lib)
 add_compile_options(-O3 -fPIC)
 
 find_package(Threads REQUIRED)
+
+include_directories(thread_pools/includes)
 
 add_library(chess OBJECT chess.cpp)
 target_link_libraries(chess Threads::Threads)

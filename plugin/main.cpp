@@ -5,12 +5,7 @@
 #include "chess.hpp"
 #include <iostream>
 #include <chrono>
-#include <random>
 #include <cstring>
-#include <tuple>
-#include <algorithm>
-#include <iomanip>
-#include <map>
 
 static void print_chess(int chess[10][10]) {
     for (int x = 0; x < 10; x++) {
@@ -48,23 +43,6 @@ static bool is_max_only(int chess[10][10]) {
     return p1_min >= p2_max || p1_max < p2_min;
 }
 
-std::map<int, int> jumps_cnt;
-
-int conflict[65536] = {0};
-
-template<int MOD>
-class HashChess {
-public:
-    std::size_t operator()(int chess[10][10]) {
-        int *ptr = (int *) chess;
-        std::size_t val = 0;
-        for (int x = 0; x < 100; x++) {
-            val = val * 31 + ptr[x] + 7;
-        }
-        return val % MOD;
-    }
-};
-
 int main(int argc, char *argv[]) {
     bool normal_mode = false;
     if (argc > 1) {
@@ -87,7 +65,7 @@ int main(int argc, char *argv[]) {
 
     agent2.max_search_actions_cnt = 36;
     agent2.max_search_depth = 4;
-    agent1.max_search_depth_without_opponent = 3;
+    agent2.max_search_depth_without_opponent = 3;
     agent2.enable_sort_actions = true;
     agent2.enable_without_opponent = true;
 
@@ -107,15 +85,18 @@ int main(int argc, char *argv[]) {
 
     int player = 1;
     int step = 0;
+    int val;
     action_t best_action{};
     while (!is_finish(1, chess) && !is_finish(2, chess)) {
         step += 1;
         if (step > 200) return -1;
         auto t1 = std::chrono::system_clock::now();
         if (player == 1) {
-            best_action = agent1.run_normal(chess);
+//            std::tie(val, best_action) = agent1.run_parallel(chess);
+            std::tie(val, best_action) = agent1.run_normal(chess);
         } else {
-            best_action = agent2.run_normal(chess);
+//            std::tie(val, best_action) = agent2.run_parallel(chess);
+            std::tie(val, best_action) = agent2.run_normal(chess);
         }
         auto t2 = std::chrono::system_clock::now();
 
@@ -130,13 +111,13 @@ int main(int argc, char *argv[]) {
                       << std::endl;
         }
 
-//        std::cout << "step: " << step << std::endl;
-//        std::cout << (normal_mode ? "normal: " : "parallel: ")
-//                  << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "ms"
-//                  << std::endl;
-//        std::cout << "player-" << player << ": " << action << std::endl;
-//        print_chess(chess);
-//        std::cout << "============================" << std::endl;
+        std::cout << "step: " << step << std::endl;
+        std::cout << (normal_mode ? "normal: " : "parallel: ")
+                  << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << "ms"
+                  << std::endl;
+        std::cout << "player-" << player << ": " << action << std::endl;
+        print_chess(chess);
+        std::cout << "============================" << std::endl;
 
         player = 3 - player;
     }

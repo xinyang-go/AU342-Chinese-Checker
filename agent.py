@@ -40,14 +40,14 @@ class SimpleGreedyAgent(Agent):
         self.action = random.choice(max_actions)
 
 
-class TeamNameMinimaxAgent(Agent):
+class XinMinimaxAgent(Agent):
     def __init__(self, game, player,
                  max_search_depth=4,
                  max_search_depth_without_opponent=3,
                  max_search_actions_cnt=32,
                  enable_sort_actions=True,
-                 enable_without_opponent=False):
-        super(TeamNameMinimaxAgent, self).__init__(game)
+                 enable_without_opponent=True):
+        super(XinMinimaxAgent, self).__init__(game)
         self.player = player
         self.plugin = ct.load_library("libplugin", "./plugin/lib")
         self.plugin.alpha_beta_minmax.argtypes = [

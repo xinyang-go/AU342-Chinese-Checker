@@ -16,7 +16,8 @@ extern "C" void init_agent(int player, int max_search_depth, int max_search_dept
 }
 
 extern "C" void alpha_beta_minmax(int player, int chess[10][10], int best_actions[2][2]) {
-    auto action = agents[player - 1].run_normal(chess);
+    auto[val, action] = agents[player - 1].run_normal(chess);
+//    auto[val, action] = agents[player - 1].run_parallel(chess);
     best_actions[0][0] = action.begin.x;
     best_actions[0][1] = action.begin.y;
     best_actions[1][0] = action.end.x;

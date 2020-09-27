@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <limits>
+#include <tuple>
 
 constexpr int DEFAULT_MAX_DEPTH = 2;
 constexpr int value_min = -(1 << 30);
@@ -50,21 +51,29 @@ public:
     std::size_t max_search_actions_cnt{std::numeric_limits<std::size_t>::max()};
     std::size_t max_search_depth{DEFAULT_MAX_DEPTH};
     std::size_t max_search_depth_without_opponent{DEFAULT_MAX_DEPTH - 1};
-    bool enable_sort_actions{false};
+    bool enable_sort_actions{true};
     bool enable_without_opponent{false};
 
 private:
     int player;
 
-    std::tuple<int, action_t>
-    minmax(int current_player, chess_t chess, int alpha, int beta, int depth, int without_opponent);
+    std::tuple<int, std::vector<action_t>>
+    minmax_search(int current_player, chess_t chess,
+                  std::vector<action_t>::const_iterator begin, std::vector<action_t>::const_iterator end,
+                  int alpha, int beta, int depth, int without_opponent);
+
+    std::tuple<int, std::vector<action_t>>
+    minmax_normal(int current_player, chess_t chess, int alpha, int beta, int depth, int without_opponent);
+
+    std::tuple<int, std::vector<action_t>>
+    minmax_parallel(int current_player, chess_t chess, int alpha, int beta, int depth, int without_opponent);
 
 public:
     explicit MinMaxAgent(int p) : player(p) {};
 
-    action_t run_normal(chess_t chess);
+    std::tuple<int, action_t> run_normal(chess_t chess);
 
-    action_t run_parallel(chess_t chess);
+    std::tuple<int, action_t> run_parallel(chess_t chess);
 };
 
 #endif //PLUGIN_CHESS_HPP

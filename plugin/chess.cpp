@@ -1,8 +1,9 @@
 #include "chess.hpp"
+#include "thread_pools.hpp"
 #include <algorithm>
 #include <random>
-#include <thread>
-#include <future>
+#include <chrono>
+#include <cstring>
 
 static constexpr point_t steps[6] = {{0,  1},
                                      {0,  -1},
@@ -21,30 +22,34 @@ static constexpr point_t directions[] = {
 };
 
 static constexpr int score7[10][10] = {
-        {600, 220, 500, 429, 418, 403, 387, 367, 346, 321},
-        {220, 220, 430, 419, 404, 388, 368, 347, 322, 296},
-        {500, 430, 420, 405, 389, 369, 348, 323, 297, 267},
-        {429, 419, 405, 390, 370, 349, 324, 298, 268, 237},
-        {418, 404, 389, 370, 350, 325, 299, 269, 238, 203},
-        {403, 388, 369, 349, 325, 300, 270, 239, 204, 168},
-        {387, 368, 348, 324, 299, 270, 240, 205, 169, 129},
-        {367, 347, 323, 298, 269, 239, 205, 170, 130, 89},
-        {346, 322, 297, 268, 238, 204, 169, 130, 90,  45},
-        {321, 296, 267, 237, 203, 168, 129, 89,  45,  0},
+        {400, 0,   317, 280, 245, 213, 184, 157, 132, 110},
+        {0,   0,   286, 250, 218, 188, 160, 135, 112, 92},
+        {317, 286, 256, 222, 192, 163, 138, 114, 94,  75},
+        {280, 250, 222, 196, 167, 141, 117, 96,  76,  60},
+        {245, 218, 192, 167, 144, 119, 98,  78,  61,  46},
+        {213, 188, 163, 141, 119, 100, 80,  62,  47,  34},
+        {184, 160, 138, 117, 98,  80,  64,  48,  35,  24},
+        {157, 135, 114, 96,  78,  62,  48,  36,  24,  15},
+        {132, 112, 94,  76,  61,  47,  35,  24,  16,  8},
+        {110, 92,  75,  60,  46,  34,  24,  15,  8,   4},
 };
 
 static constexpr int score3[10][10] = {
-        {200, 600, 300, 429, 418, 403, 387, 367, 346, 321},
-        {600, 600, 430, 419, 404, 388, 368, 347, 322, 296},
-        {300, 430, 420, 405, 389, 369, 348, 323, 297, 267},
-        {429, 419, 405, 390, 370, 349, 324, 298, 268, 237},
-        {418, 404, 389, 370, 350, 325, 299, 269, 238, 203},
-        {403, 388, 369, 349, 325, 300, 270, 239, 204, 168},
-        {387, 368, 348, 324, 299, 270, 240, 205, 169, 129},
-        {367, 347, 323, 298, 269, 239, 205, 170, 130, 89},
-        {346, 322, 297, 268, 238, 204, 169, 130, 90,  45},
-        {321, 296, 267, 237, 203, 168, 129, 89,  45,  0},
+        {0,   357, 100, 280, 245, 213, 184, 157, 132, 110},
+        {357, 324, 286, 250, 218, 188, 160, 135, 112, 92},
+        {100, 286, 256, 222, 192, 163, 138, 114, 94,  75},
+        {280, 250, 222, 196, 167, 141, 117, 96,  76,  60},
+        {245, 218, 192, 167, 144, 119, 98,  78,  61,  46},
+        {213, 188, 163, 141, 119, 100, 80,  62,  47,  34},
+        {184, 160, 138, 117, 98,  80,  64,  48,  35,  24},
+        {157, 135, 114, 96,  78,  62,  48,  36,  24,  15},
+        {132, 112, 94,  76,  61,  47,  35,  24,  16,  8},
+        {110, 92,  75,  60,  46,  34,  24,  15,  8,   4},
 };
+
+static thread_pool::static_pool pool;
+
+static std::default_random_engine e(std::chrono::system_clock::now().time_since_epoch().count());
 
 class auto_action_applier {
 private:
@@ -179,11 +184,10 @@ void dfs_jumps(chess_t chess, const point_t &begin, const point_t &curr, std::ve
 }
 
 std::vector<action_t> get_legal_action(int player, chess_t chess) {
-    thread_local static std::vector<action_t> actions;
-    actions.clear();
+    std::vector<action_t> actions;
     actions.reserve(200);
 
-    thread_local static std::array<point_t, 10> curr_idx{};
+    std::array<point_t, 10> curr_idx{};
     get_curr_idx(player, chess, curr_idx);
 
     for (auto begin : curr_idx) {
@@ -237,9 +241,9 @@ static int evaluate_chess(int player, chess_ct chess) {
     }
 
     if (player == 1) {
-        return value1 - value2 / 2;
+        return value1 - value2;
     } else {
-        return value2 - value1 / 2;
+        return value2 - value1;
     }
 }
 
@@ -278,35 +282,32 @@ void sort_actions(int player, std::vector<action_t> &actions) {
     }
 }
 
-std::tuple<int, action_t>
-MinMaxAgent::minmax(int current_player, chess_t chess, int alpha, int beta, int depth, int without_opponent) {
-    auto legal_actions = get_legal_action(current_player, chess);
-    int searching_cnt = std::min(max_search_actions_cnt, legal_actions.size());
-
-    if (enable_sort_actions) sort_actions(current_player, legal_actions);
-
+std::tuple<int, std::vector<action_t>>
+MinMaxAgent::minmax_search(int current_player, chess_t chess,
+                           std::vector<action_t>::const_iterator begin, std::vector<action_t>::const_iterator end,
+                           int alpha, int beta, int depth, int without_opponent) {
     int val{0}, best_val{std::numeric_limits<int>::min()};
-    action_t best_action{};
+    std::vector<action_t> best_actions;
+    best_actions.reserve(end - begin);
 
-    for (int i = 0; i < searching_cnt; i++) {
-        const auto &action = legal_actions[i];
-
+    for (auto iter = begin; iter != end; iter++) {
+        const auto &action = *iter;
         // apply current action & resume automatically
         auto_action_applier applier(chess, action.begin, action.end);
 
         if (is_finish(current_player, chess)) {
             // finish game
-            return {value_max + max_search_depth, action};
+            return {value_max + (int) max_search_depth, {action}};
         } else if (depth == 0) {
             // evaluate current status
             val = evaluate_chess(current_player, chess);
         } else if (without_opponent) {
             // step into myself
-            auto[v, a] = minmax(current_player, chess, alpha, beta, depth - 1, without_opponent);
+            auto[v, a] = minmax_normal(current_player, chess, alpha, beta, depth - 1, without_opponent);
             val = v;
         } else {
             // step into opponent
-            auto[v, a] = minmax(3 - current_player, chess, -beta, -alpha, depth - 1, without_opponent);
+            auto[v, a] = minmax_normal(3 - current_player, chess, -beta, -alpha, depth - 1, without_opponent);
             val = -v;
         }
         // value decrease by depth
@@ -314,7 +315,7 @@ MinMaxAgent::minmax(int current_player, chess_t chess, int alpha, int beta, int 
 
         // alpha-beta tuning
         if (val >= beta) {
-            return {beta, action};
+            return {beta, {action}};
         }
         // update alpha
         if (val > alpha) {
@@ -323,19 +324,84 @@ MinMaxAgent::minmax(int current_player, chess_t chess, int alpha, int beta, int 
         // update best action
         if (val > best_val) {
             best_val = val;
-            best_action = action;
+        }
+        if (val == best_val) {
+            best_actions.emplace_back(action);
         }
     }
-    return {best_val, best_action};
+    return {best_val, best_actions};
 }
 
-action_t MinMaxAgent::run_normal(chess_t chess) {
+std::tuple<int, std::vector<action_t>>
+MinMaxAgent::minmax_normal(int current_player, chess_t chess, int alpha, int beta, int depth, int without_opponent) {
+    auto legal_actions = get_legal_action(current_player, chess);
+    int searching_cnt = std::min(max_search_actions_cnt, legal_actions.size());
+
+    if (enable_sort_actions) sort_actions(current_player, legal_actions);
+
+    auto begin = legal_actions.begin();
+    auto end = legal_actions.begin() + searching_cnt;
+
+    return minmax_search(current_player, chess, begin, end, alpha, beta, depth, without_opponent);
+}
+
+std::tuple<int, std::vector<action_t>>
+MinMaxAgent::minmax_parallel(int current_player, chess_t chess, int alpha, int beta, int depth, int without_opponent) {
+    auto legal_actions = get_legal_action(current_player, chess);
+    int searching_cnt = std::min(max_search_actions_cnt, legal_actions.size());
+
+    if (enable_sort_actions) sort_actions(current_player, legal_actions);
+
+    size_t n_cpu = std::thread::hardware_concurrency();
+    size_t part = searching_cnt / n_cpu;
+    size_t remain = searching_cnt - part * n_cpu;
+
+    size_t idx = 0;
+    std::future<std::tuple<int, std::vector<action_t>>> futures[n_cpu];
+    for (int i = 0; i < n_cpu; i++) {
+        auto begin = legal_actions.begin() + idx;
+        idx += part + (i < remain ? 1 : 0);
+        auto end = legal_actions.begin() + idx;
+        futures[i] = pool.enqueue([&](auto p, auto c, auto b, auto e, auto v1, auto v2, auto d, auto w) {
+            int chess_copy[10][10];
+            memcpy(chess_copy, c, sizeof(int[10][10]));
+            return minmax_search(p, chess_copy, b, e, v1, v2, d, w);
+        }, player, chess, begin, end, alpha, beta, depth, without_opponent);
+    }
+
+    int best_val{std::numeric_limits<int>::min()};
+    std::vector<action_t> best_actions;
+    best_actions.reserve(legal_actions.size());
+    for (int i = 0; i < n_cpu; i++) {
+        auto[val, actions] = futures[i].get();
+        if (val > best_val) {
+            best_val = val;
+            best_actions.clear();
+        }
+        if (val == best_val) {
+            best_actions.insert(best_actions.end(), actions.begin(), actions.end());
+        }
+    }
+
+    return {best_val, best_actions};
+}
+
+std::tuple<int, action_t> MinMaxAgent::run_normal(chess_t chess) {
     bool without_opponent = enable_without_opponent && is_without_opponent(chess);
-    auto[val, action] = minmax(player, chess, value_min, value_max,
-                               without_opponent ? max_search_depth_without_opponent : max_search_depth,
-                               without_opponent);
-    return action;
+    int depth = without_opponent ? max_search_depth_without_opponent : max_search_depth;
+    auto[val, best_actions] = minmax_normal(player, chess, value_min, value_max, depth, without_opponent);
+
+    std::uniform_int_distribution<size_t> u(0, best_actions.size() - 1);
+    return {val, best_actions[u(e)]};
 }
 
+std::tuple<int, action_t> MinMaxAgent::run_parallel(chess_t chess) {
+    bool without_opponent = enable_without_opponent && is_without_opponent(chess);
+    int depth = without_opponent ? max_search_depth_without_opponent : max_search_depth;
+    auto[val, best_actions] = minmax_parallel(player, chess, value_min, value_max, depth, without_opponent);
+
+    std::uniform_int_distribution<size_t> u(0, best_actions.size() - 1);
+    return {val, best_actions[u(e)]};
+}
 
 

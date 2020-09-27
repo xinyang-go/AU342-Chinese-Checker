@@ -56,6 +56,7 @@ def runGame(ccgame, agents):
     board.draw()
     board.update_idletasks()
     board.update()
+    print(f"steps: {iter}")
     time.sleep(0.1)
     end = datetime.datetime.now()
     if ccgame.isEnd(state, iter):
@@ -90,18 +91,13 @@ def callback(ccgame):
     B.destroy()
     simpleGreedyAgent1 = SimpleGreedyAgent(ccgame)
     simpleGreedyAgent2 = SimpleGreedyAgent(ccgame)
-    teamAgent1 = TeamNameMinimaxAgent(ccgame, player=1,
-                                      max_search_depth=4,
-                                      max_search_depth_without_opponent=3,
-                                      max_search_actions_cnt=32,
-                                      enable_sort_actions=True,
-                                      enable_without_opponent=True)
-    teamAgent2 = TeamNameMinimaxAgent(ccgame, player=2,
-                                      max_search_depth=2,
-                                      max_search_depth_without_opponent=2,
-                                      max_search_actions_cnt=200,
-                                      enable_sort_actions=True,
-                                      enable_without_opponent=False)
+    teamAgent1 = XinMinimaxAgent(ccgame, player=1)
+    teamAgent2 = XinMinimaxAgent(ccgame, player=2,
+                                 max_search_depth=2,
+                                 max_search_depth_without_opponent=2,
+                                 max_search_actions_cnt=200,
+                                 enable_sort_actions=True,
+                                 enable_without_opponent=False)
     simulateMultipleGames({1: teamAgent1, 2: simpleGreedyAgent2}, 10, ccgame)
 
 
